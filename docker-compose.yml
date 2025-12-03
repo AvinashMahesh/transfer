@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: deloitte
+      POSTGRES_PASSWORD: deloitte123
+      POSTGRES_DB: deloitte_initiatives
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deloitte"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://deloitte:deloitte123@postgres:5432/deloitte_initiatives
+      QDRANT_URL: http://qdrant:6333
+      SECRET_KEY: your-secret-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - .:/app
+    command: python run.py
+
+volumes:
+  postgres_data:
+  qdrant_data:
